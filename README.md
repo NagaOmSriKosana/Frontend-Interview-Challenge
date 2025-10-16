@@ -344,6 +344,79 @@ We understand AI tools are part of modern development. Feel free to use them! Wh
 
 ---
 
+## ✅ What I changed in this README
+
+- Clarified installation and run steps that match `package.json` scripts.
+- Added a short verification checklist so you can quickly confirm the app runs locally.
+- Added a concise Architecture Decisions & Component Structure section to explain how the provided code is intended to be wired.
+- Noted assumptions and suggested next steps for completing the implementation.
+
+## 🧪 Quick Verification Checklist
+
+1. Ensure Node.js >= 18 is installed.
+2. From the repository root run:
+
+```powershell
+npm install
+npm run dev
+```
+
+3. Open http://localhost:3000 in your browser. You should see the main page and be able to navigate to `/schedule`.
+4. Run a type check and lint (optional):
+
+```powershell
+npm run type-check
+npm run lint
+```
+
+If anything fails, paste the terminal output and I will help debug.
+
+## 🏗️ Architecture Decisions (summary)
+
+These are the minimal architecture decisions I expect this project to follow (and which the assignment asks you to demonstrate):
+
+- Service layer: `services/appointmentService.ts` should provide data access functions such as `getAppointmentsByDoctorAndDate` and `getAppointmentsByDoctorAndDateRange`. This keeps data access separated from UI.
+- Headless hooks: `hooks/useAppointments.ts` should contain the scheduling logic (time slot generation, filtering, overlap detection) and expose a small API: { appointments, timeSlots, loading, error, selectDoctor, setDate }.
+- Presentational components: `components/DayView.tsx`, `components/WeekView.tsx`, and `components/DoctorSelector.tsx` should be responsible only for rendering and receive data/handlers via props from `ScheduleView.tsx` or page-level container.
+- Types: Use the provided `types/index.ts` for Appointment, Doctor, Patient and related models. Avoid `any`.
+
+## 📦 Component Structure (suggested)
+
+ScheduleView (container)
+- DoctorSelector (dropdown)
+- Header (date picker, view toggle)
+- DayView (renders a single-day timeline)
+- WeekView (renders a 7-day grid)
+
+Reusable pieces:
+- AppointmentCard (displays patient name/type/duration)
+- TimeSlotRow / TimelineGrid (layout helpers)
+
+## ⚠️ Assumptions I made
+
+1. `npm run dev` starts the Next.js dev server on port 3000 (see `package.json`).
+2. The `app/schedule/page.tsx` route exists and is the main interactive area for the scheduler.
+3. `date-fns` is included in package.json and can be used for date calculations.
+
+If any of these assumptions are incorrect, tell me which file or behavior is different and I'll adapt the README accordingly.
+
+## 🧾 Notes about AI usage
+
+If you used AI tools while implementing the code, add an entry to `SUBMISSION.md` describing which tools you used and for what purpose (boilerplate, debugging, architecture hints, etc.). This repo already contains a `SUBMISSION.md` with a dedicated section for AI Tools.
+
+---
+
+## Next steps I can take for you
+
+If you want, I can:
+
+- Implement the `appointmentService.ts` and `useAppointments.ts` hook with the expected API.
+- Implement `DoctorSelector.tsx`, `DayView.tsx`, and `WeekView.tsx` with basic rendering using the provided mock data.
+- Run `npm install` and `npm run dev` in a terminal here to verify the app boots and report any runtime/type errors.
+
+Tell me which of the above you'd like me to do next and I'll proceed.
+
+
 ## ✅ Bonus Features (If Time Permits)
 
 - Current time indicator (red line showing current time)
