@@ -14,7 +14,12 @@
 
 'use client';
 
-import type { Appointment, Doctor, TimeSlot } from '@/types';
+import type { Appointment, Doctor, TimeSlot, PopulatedAppointment } from '@/types';
+import { DEFAULT_CALENDAR_CONFIG } from '@/types';
+import { format, addMinutes, isBefore, isAfter, parseISO, differenceInMinutes } from 'date-fns';
+import { useRef, useEffect, useState } from 'react';
+import { appointmentService } from '@/services/appointmentService';
+import AppointmentCard from './AppointmentCard';
 
 interface DayViewProps {
   appointments: Appointment[];
@@ -51,14 +56,18 @@ export function DayView({ appointments, doctor, date }: DayViewProps) {
    * Hint: You can use a loop or date-fns utilities
    */
   function generateTimeSlots(): TimeSlot[] {
-    // TODO: Implement time slot generation
-    // Example structure:
-    // return [
-    //   { start: new Date(...8:00), end: new Date(...8:30), label: '8:00 AM' },
-    //   { start: new Date(...8:30), end: new Date(...9:00), label: '8:30 AM' },
-    //   ...
-    // ];
-    return [];
+    const slots: TimeSlot[] = [];
+    const { startHour, endHour, slotDuration } = DEFAULT_CALENDAR_CONFIG;
+    const start = new Date(date);
+    start.setHours(startHour, 0, 0, 0);
+
+    for (let mins = 0; mins < (endHour - startHour) * 60; mins += slotDuration) {
+      const slotStart = addMinutes(start, mins);
+      const slotEnd = addMinutes(slotStart, slotDuration);
+      slots.push({ start: slotStart, end: slotEnd, label: format(slotStart, 'p') });
+    }
+
+    return slots;
   }
 
   /**
@@ -66,11 +75,87 @@ export function DayView({ appointments, doctor, date }: DayViewProps) {
    *
    * Given a time slot, find all appointments that overlap with it
    */
-  function getAppointmentsForSlot(slot: TimeSlot): Appointment[] {
-    // TODO: Implement appointment filtering
-    // Check if appointment.startTime or appointment.endTime falls within the slot
-    return [];
+  // We'll layout appointments for the whole day to avoid duplicate renderings per slot
+  const dayStart = new Date(date);
+  dayStart.setHours(DEFAULT_CALENDAR_CONFIG.startHour, 0, 0, 0);
+
+  const dayEnd = new Date(date);
+  dayEnd.setHours(DEFAULT_CALENDAR_CONFIG.endHour, 0, 0, 0);
+
+  const dayAppointments = appointments
+    .filter((apt) => {
+      const s = parseISO(apt.startTime);
+      const e = parseISO(apt.endTime);
+      return s < dayEnd && e > dayStart;
+    })
+    .sort((a, b) => parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime());
+
+  // Robust pixel-based interval partitioning. We compute column assignment
+  // (minimum columns) and then, once we know the container width, convert
+  // columns into pixel left/width using a fixed gutter in px. This removes
+  // percent-vs-pixel mismatch and avoids overlap caused by padding.
+  function layoutAppointments(apts: typeof dayAppointments) {
+    const placed: Record<string, { leftPx?: number; widthPx?: number; col: number; cols: number }> = {};
+
+    // columnsEnd stores the current end time (ms) for each column
+    const columnsEnd: number[] = [];
+    const appointmentColumn: Record<string, number> = {};
+
+    for (const apt of apts) {
+      const sMs = parseISO(apt.startTime).getTime();
+      const eMs = parseISO(apt.endTime).getTime();
+
+      let assigned = -1;
+      for (let i = 0; i < columnsEnd.length; i++) {
+        if (columnsEnd[i] <= sMs) {
+          assigned = i;
+          break;
+        }
+      }
+
+      if (assigned === -1) {
+        columnsEnd.push(eMs);
+        assigned = columnsEnd.length - 1;
+      } else {
+        columnsEnd[assigned] = eMs;
+      }
+
+      appointmentColumn[apt.id] = assigned;
+    }
+
+    const totalCols = columnsEnd.length || 1;
+    for (const apt of apts) {
+      const col = appointmentColumn[apt.id];
+      placed[apt.id] = { col, cols: totalCols };
+    }
+
+    return placed;
   }
+
+  const layout = layoutAppointments(dayAppointments);
+
+  const PIXELS_PER_MINUTE = 1; // 1px per minute for simple mapping
+
+  // measure container width for pixel math
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+
+  useEffect(() => {
+    function measure() {
+      const w = timelineRef.current?.clientWidth || 0;
+      setContainerWidth(w);
+    }
+
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => measure());
+      if (timelineRef.current) ro.observe(timelineRef.current);
+      return () => ro.disconnect();
+    }
+
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   const timeSlots = generateTimeSlots();
 
@@ -84,47 +169,65 @@ export function DayView({ appointments, doctor, date }: DayViewProps) {
         </h3>
         {doctor && (
           <p className="text-sm text-gray-600">
-            Dr. {doctor.name} - {doctor.specialty}
+            {`Dr. ${doctor.name}`} - {doctor.specialty.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
           </p>
         )}
       </div>
 
       {/* Timeline grid */}
       <div className="border border-gray-200 rounded-lg overflow-hidden">
-        {/* TODO: Implement the timeline */}
-        <div className="text-center text-gray-500 py-12">
-          <p>Day View Timeline Goes Here</p>
-          <p className="text-sm mt-2">
-            Implement time slots (8 AM - 6 PM) and position appointments
-          </p>
-
-          {/* Placeholder to show appointments exist */}
-          {appointments.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm font-medium">
-                {appointments.length} appointment(s) for this day
-              </p>
+        <div className="flex">
+          <div className="w-24 p-2">
+            <div className="space-y-6">
+              {timeSlots.map((slot, i) => (
+                <div key={i} className="text-sm text-gray-600" style={{ height: `${DEFAULT_CALENDAR_CONFIG.slotDuration}px` }}>
+                  {slot.label}
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* TODO: Replace above with actual timeline implementation */}
-        {/* Example structure:
-        <div className="divide-y divide-gray-100">
-          {timeSlots.map((slot, index) => (
-            <div key={index} className="flex">
-              <div className="w-24 p-2 text-sm text-gray-600">
-                {slot.label}
-              </div>
-              <div className="flex-1 p-2 min-h-[60px] relative">
-                {getAppointmentsForSlot(slot).map(appointment => (
-                  <AppointmentCard key={appointment.id} appointment={appointment} />
-                ))}
-              </div>
-            </div>
-          ))}
+          <div ref={timelineRef} className="flex-1 p-2 relative" style={{ height: `${(DEFAULT_CALENDAR_CONFIG.endHour - DEFAULT_CALENDAR_CONFIG.startHour) * 60 * PIXELS_PER_MINUTE}px` }}>
+            {dayAppointments.map((apt) => {
+              const populated = appointmentService.getPopulatedAppointment(apt) as PopulatedAppointment | null;
+              if (!populated) return null;
+              const s = parseISO(apt.startTime);
+              const e = parseISO(apt.endTime);
+              const top = Math.max(0, differenceInMinutes(s, dayStart) * PIXELS_PER_MINUTE);
+              const height = Math.max(20, differenceInMinutes(e, s) * PIXELS_PER_MINUTE);
+              const posMeta = layout[apt.id];
+
+              // If we have a measured container width, compute exact pixel positions
+              if (containerWidth > 0 && posMeta) {
+                const GUTTER = 8; // px gutter between columns
+                const totalCols = posMeta.cols;
+                const columnWidth = Math.max(20, Math.floor((containerWidth - GUTTER * (totalCols - 1)) / totalCols));
+                const leftPx = Math.round(posMeta.col * (columnWidth + GUTTER));
+                const widthPx = columnWidth;
+
+                return (
+                  <div key={apt.id} className="absolute" style={{ top: `${top}px`, height: `${height}px`, left: `${leftPx}px`, width: `${widthPx}px` }}>
+                    <div className="h-full w-full box-border p-1">
+                      <AppointmentCard appointment={populated} absolute />
+                    </div>
+                  </div>
+                );
+              }
+
+              // Fallback to percent-based layout if container not measured yet
+              const pos = layout[apt.id] || { left: 0, cols: 1, col: 0 };
+              const leftPercent = (pos.col / (pos.cols || 1)) * 100;
+              const widthPercent = (1 / (pos.cols || 1)) * 100;
+              return (
+                <div key={apt.id} className="absolute" style={{ top: `${top}px`, height: `${height}px`, left: `${leftPercent}%`, width: `calc(${widthPercent}% - 8px)` }}>
+                  <div className="h-full w-full box-border p-1">
+                    <AppointmentCard appointment={populated} absolute />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        */}
       </div>
 
       {/* Empty state */}

@@ -15,6 +15,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Appointment, Doctor } from '@/types';
 import { appointmentService } from '@/services/appointmentService';
+import { APPOINTMENT_TYPE_CONFIG } from '@/types';
 
 /**
  * Hook parameters
@@ -59,27 +60,38 @@ export function useAppointments(params: UseAppointmentsParams): UseAppointmentsR
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // TODO: Fetch doctor data
-  const doctor = useMemo(() => {
-    // Implement: Get doctor by ID
-    // return appointmentService.getDoctorById(doctorId);
-    return undefined;
-  }, [doctorId]);
+  const doctor = useMemo(() => appointmentService.getDoctorById(doctorId), [doctorId]);
 
   // TODO: Fetch appointments when dependencies change
   useEffect(() => {
-    // Implement: Fetch appointments
-    // Consider:
-    // - If startDate and endDate are provided, use date range
-    // - Otherwise, use single date
-    // - Set loading state
-    // - Handle errors
-    // - Set appointments
+    let cancelled = false;
 
-    console.log('TODO: Fetch appointments for', { doctorId, date, startDate, endDate });
+    async function fetchApts() {
+      setLoading(true);
+      setError(null);
+      try {
+        let apts: Appointment[] = [];
+        if (startDate && endDate) {
+          apts = appointmentService.getAppointmentsByDoctorAndDateRange(doctorId, startDate, endDate);
+        } else {
+          apts = appointmentService.getAppointmentsByDoctorAndDate(doctorId, date);
+        }
 
-    // Placeholder - remove when implementing
-    setLoading(false);
+        if (!cancelled) {
+          setAppointments(apts);
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchApts();
+
+    return () => {
+      cancelled = true;
+    };
   }, [doctorId, date, startDate, endDate]);
 
   return {

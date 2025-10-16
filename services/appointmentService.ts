@@ -19,6 +19,8 @@ import {
   MOCK_PATIENTS,
   getDoctorById,
   getPatientById,
+  getAppointmentsByDoctorAndDate,
+  getAppointmentsByDoctorAndDateRange,
 } from '@/data/mockData';
 
 /**
@@ -34,8 +36,7 @@ export class AppointmentService {
    * TODO: Implement this method
    */
   getAppointmentsByDoctor(doctorId: string): Appointment[] {
-    // TODO: Implement - filter MOCK_APPOINTMENTS by doctorId
-    throw new Error('Not implemented - getAppointmentsByDoctor');
+    return MOCK_APPOINTMENTS.filter((apt) => apt.doctorId === doctorId);
   }
 
   /**
@@ -47,9 +48,8 @@ export class AppointmentService {
    * @returns Array of appointments for that doctor on that date
    */
   getAppointmentsByDoctorAndDate(doctorId: string, date: Date): Appointment[] {
-    // TODO: Implement - filter by doctor AND date
-    // Hint: You'll need to compare dates properly (same day, ignoring time)
-    throw new Error('Not implemented - getAppointmentsByDoctorAndDate');
+    // Use helper from mockData for correct day boundaries
+    return getAppointmentsByDoctorAndDate(doctorId, date);
   }
 
   /**
@@ -66,8 +66,7 @@ export class AppointmentService {
     startDate: Date,
     endDate: Date
   ): Appointment[] {
-    // TODO: Implement - filter by doctor AND date range
-    throw new Error('Not implemented - getAppointmentsByDoctorAndDateRange');
+    return getAppointmentsByDoctorAndDateRange(doctorId, startDate, endDate);
   }
 
   /**
@@ -78,9 +77,16 @@ export class AppointmentService {
    * TODO: Implement this helper method
    */
   getPopulatedAppointment(appointment: Appointment): PopulatedAppointment | null {
-    // TODO: Implement - merge appointment with patient and doctor data
-    // Hint: Use getDoctorById and getPatientById from mockData
-    throw new Error('Not implemented - getPopulatedAppointment');
+    const doctor = getDoctorById(appointment.doctorId);
+    const patient = getPatientById(appointment.patientId);
+
+    if (!doctor || !patient) return null;
+
+    return {
+      ...appointment,
+      doctor,
+      patient,
+    } as PopulatedAppointment;
   }
 
   /**
@@ -89,8 +95,7 @@ export class AppointmentService {
    * TODO: Implement this method
    */
   getAllDoctors(): Doctor[] {
-    // TODO: Implement - return all doctors
-    throw new Error('Not implemented - getAllDoctors');
+    return MOCK_DOCTORS.slice();
   }
 
   /**
@@ -99,8 +104,7 @@ export class AppointmentService {
    * TODO: Implement this method
    */
   getDoctorById(id: string): Doctor | undefined {
-    // TODO: Implement - find doctor by ID
-    throw new Error('Not implemented - getDoctorById');
+    return getDoctorById(id);
   }
 
   /**

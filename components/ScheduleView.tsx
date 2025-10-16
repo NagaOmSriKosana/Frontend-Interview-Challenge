@@ -12,16 +12,20 @@
  * 5. Think about component composition and reusability
  */
 
-'use client';
+ 'use client';
 
 import { useState } from 'react';
 import type { CalendarView } from '@/types';
+import DoctorSelector from './DoctorSelector';
+import { DayView } from './DayView';
+import { WeekView } from './WeekView';
+import { useAppointments } from '@/hooks/useAppointments';
+import { appointmentService } from '@/services/appointmentService';
+import { format } from 'date-fns';
 
-// TODO: Import your components
-// import { DoctorSelector } from './DoctorSelector';
-// import { DayView } from './DayView';
-// import { WeekView } from './WeekView';
-
+export default function ScheduleViewWrapper(props: any) {
+  return <ScheduleView {...props} />;
+}
 interface ScheduleViewProps {
   selectedDoctorId: string;
   selectedDate: Date;
@@ -52,11 +56,15 @@ export function ScheduleView({
   onDateChange,
   onViewChange,
 }: ScheduleViewProps) {
-  // TODO: Use the useAppointments hook to fetch data
-  // const { appointments, doctor, loading, error } = useAppointments({
-  //   doctorId: selectedDoctorId,
-  //   date: selectedDate,
-  // });
+  const weekStart = new Date(selectedDate);
+  weekStart.setDate(selectedDate.getDate() - selectedDate.getDay() + 1); // Monday
+
+  const { appointments, doctor, loading, error } = useAppointments({
+    doctorId: selectedDoctorId,
+    date: selectedDate,
+    startDate: view === 'week' ? weekStart : undefined,
+    endDate: view === 'week' ? new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6, 23, 59, 59) : undefined,
+  });
 
   return (
     <div className="bg-white rounded-lg shadow-lg">
@@ -68,27 +76,40 @@ export function ScheduleView({
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Doctor Schedule</h2>
             <p className="text-sm text-gray-600 mt-1">
-              TODO: Display doctor name and specialty
+              {doctor ? (
+                <>
+                  {`Dr. ${doctor.name}`} — {doctor.specialty.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                </>
+              ) : (
+                'Select a doctor to view schedule'
+              )}
             </p>
           </div>
 
-          <div className="flex gap-4">
-            {/* TODO: Add DoctorSelector component */}
-            <div className="text-sm text-gray-500">Doctor Selector</div>
+          <div className="flex gap-4 items-center w-96">
+            <div className="flex-1">
+              <DoctorSelector selectedDoctorId={selectedDoctorId} onDoctorChange={onDoctorChange} />
+            </div>
 
-            {/* TODO: Add date picker */}
-            <div className="text-sm text-gray-500">Date Picker</div>
+            <div>
+              <input
+                type="date"
+                value={selectedDate.toISOString().slice(0, 10)}
+                onChange={(e) => onDateChange(new Date(e.target.value))}
+                className="px-3 py-2 border rounded"
+                aria-label="Select date"
+              />
+            </div>
 
-            {/* TODO: Add view toggle buttons (Day/Week) */}
             <div className="flex gap-2">
               <button
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded"
+                className={`px-4 py-2 text-sm rounded ${view === 'day' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
                 onClick={() => onViewChange('day')}
               >
                 Day
               </button>
               <button
-                className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded"
+                className={`px-4 py-2 text-sm rounded ${view === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
                 onClick={() => onViewChange('week')}
               >
                 Week
@@ -101,27 +122,19 @@ export function ScheduleView({
       {/* Calendar View */}
       <div className="p-6">
         {/* TODO: Conditionally render DayView or WeekView based on view prop */}
-        <div className="text-center text-gray-500 py-12">
-          <p>Calendar View Goes Here</p>
-          <p className="text-sm mt-2">
-            Implement DayView and WeekView components and render based on selected view
-          </p>
-        </div>
+        {loading && (
+          <div className="text-center text-gray-500 py-12">Loading...</div>
+        )}
 
-        {/* TODO: Uncomment when components are ready */}
-        {/* {view === 'day' ? (
-          <DayView
-            appointments={appointments}
-            doctor={doctor}
-            date={selectedDate}
-          />
-        ) : (
-          <WeekView
-            appointments={appointments}
-            doctor={doctor}
-            weekStartDate={getWeekStart(selectedDate)}
-          />
-        )} */}
+        {!loading && (
+          <div>
+            {view === 'day' ? (
+              <DayView appointments={appointments} doctor={doctor} date={selectedDate} />
+            ) : (
+              <WeekView appointments={appointments} doctor={doctor} weekStartDate={weekStart} />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
