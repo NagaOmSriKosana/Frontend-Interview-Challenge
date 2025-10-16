@@ -169,7 +169,7 @@ export function DayView({ appointments, doctor, date }: DayViewProps) {
         </h3>
         {doctor && (
           <p className="text-sm text-gray-600">
-            {`Dr. ${doctor.name}`} - {doctor.specialty.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            {`${doctor.name}`} - {doctor.specialty.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
           </p>
         )}
       </div>

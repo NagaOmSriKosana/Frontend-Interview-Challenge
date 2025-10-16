@@ -78,7 +78,7 @@ export function ScheduleView({
             <p className="text-sm text-gray-600 mt-1">
               {doctor ? (
                 <>
-                  {`Dr. ${doctor.name}`} — {doctor.specialty.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  {`${doctor.name}`} — {doctor.specialty.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                 </>
               ) : (
                 'Select a doctor to view schedule'
